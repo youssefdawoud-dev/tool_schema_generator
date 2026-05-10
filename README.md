@@ -21,7 +21,7 @@ Add the package to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  tool_schema_generator: ^0.2.1
+  tool_schema_generator: ^0.2.0
 
 dev_dependencies:
   build_runner: ^2.4.0
