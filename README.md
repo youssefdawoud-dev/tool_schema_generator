@@ -60,49 +60,35 @@ Run the build runner command in your terminal:
 dart run build_runner build -d
 ```
 
-### 3. Use the generated schema
+### 3. Use the generated schemas and dispatcher
 
-The generator creates a `tools.g.dart` file containing a `Map<String, dynamic>` constant for each tool, as well as an `allToolSchemas` list containing all tools in the file. 
+The generator creates a `tools.g.dart` file containing a `toolRegistry` instance. This registry contains all your schemas and automatically routes LLM tool calls back to your Dart functions safely.
 
-You can now pass these schemas directly to your LLM framework!
+You can pass the schemas directly to your LLM framework using `toolRegistry.allSchemas`, or select individual ones via strongly-typed getters like `toolRegistry.sendEmail`.
 
 ```dart
 import 'tools.dart';
 
-void main() {
-  final schemas = allToolSchemas;
+void main() async {
+  // 1. Pass the schemas to your LLM
+  final response = await llm.generate(
+    prompt: "Send an email to hello@example.com saying Hi!",
+    tools: toolRegistry.allSchemas, // or [toolRegistry.sendEmail]
+  );
   
-  // schemas looks exactly like this:
-  // [
-  //   {
-  //     "type": "function",
-  //     "function": {
-  //       "name": "sendEmail",
-  //       "description": "Sends an email to a specific user.",
-  //       "parameters": {
-  //         "type": "object",
-  //         "properties": {
-  //           "to": {
-  //             "type": "string",
-  //             "description": "The email address of the recipient"
-  //           },
-  //           "subject": {
-  //             "type": "string",
-  //             "description": "The subject line of the email"
-  //           },
-  //           "body": {
-  //             "type": "string",
-  //             "description": "The main body content"
-  //           },
-  //           "isHtml": {
-  //             "type": "boolean"
-  //           }
-  //         },
-  //         "required": ["to", "subject", "body"]
-  //       }
-  //     }
-  //   }
-  // ]
+  // 2. When the LLM decides to call a tool, dispatch it through the registry!
+  for (final toolCall in response.toolCalls) {
+    // The registry safely casts arguments, handles missing required fields, 
+    // and catches internal exceptions.
+    final result = await toolRegistry.call(toolCall.name, toolCall.arguments);
+    
+    switch (result) {
+      case ToolSuccess(:final value):
+        print("Tool returned: $value");
+      case ToolError(:final code, :final message):
+        print("Tool failed (\$code): \$message");
+    }
+  }
 }
 ```
 
