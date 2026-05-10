@@ -1,14 +1,12 @@
-## 0.3.0
+## 0.2.0
+
+### New: Tool Dispatcher & Subclass Schema Getters
+
+This release adds a complete dispatcher layer so you can invoke tools by name with the raw argument maps your LLM returns — with no boilerplate.
 
 * **Named Schema Getters:** The code generator now emits a private subclass of `ToolRegistry` that provides strongly-typed getters for each tool schema. You can now use `toolRegistry.myToolName` instead of manually importing the `<myToolName>ToolSchema` constant.
 * Added `schemaFor(String name)` and `allSchemas` to `ToolRegistry`. You can now pass `toolRegistry.allSchemas` directly to your LLM framework.
 
-## 0.2.0
-
-### New: Tool Dispatcher — `ToolRegistry`, `ToolResult`, structured errors
-
-This release adds a complete dispatcher layer so you can invoke tools by name
-with the raw argument maps your LLM returns — with no boilerplate.
 
 #### New public API
 
