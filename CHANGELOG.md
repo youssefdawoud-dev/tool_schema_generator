@@ -1,3 +1,22 @@
+## 0.3.0
+
+### Added
+
+* Added `@Inject()` for named tool parameters that should be hidden from the generated LLM schema.
+* Injected parameters are still read from the `args` map passed to `toolRegistry.call`, so application code can merge runtime values before dispatch.
+* Added generator validation for injected parameters:
+  * `@Inject()` can only be used on named parameters.
+  * Injected parameters cannot be `required`.
+  * Injected parameters must be nullable or have a Dart default value.
+
+### Fixed
+
+* Fixed generated argument parsing for parameters with Dart defaults so omitted values safely fall back to the default before casting errors occur.
+
+### Documentation
+
+* Documented runtime injection usage and the merged-arguments invocation pattern.
+
 ## 0.2.1
 
 * **Documentation:** Updated README with detailed usage guide for tool dispatching, error handling, and registry life-cycle.
@@ -58,9 +77,6 @@ switch (result) {
 ---
 
 ## 0.1.0
-
-* **Initial Release:** First version of `tool_schema_generator`.
-
 
 * **Initial Release:** First version of `tool_schema_generator`.
 * Introduced `@Tool()` and `@Describe()` annotations for Dart functions.

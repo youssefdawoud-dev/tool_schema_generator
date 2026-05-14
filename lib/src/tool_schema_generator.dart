@@ -1,4 +1,6 @@
 import 'package:analyzer/dart/element/element.dart';
+import 'package:analyzer/dart/element/nullability_suffix.dart';
+import 'package:analyzer/dart/constant/value.dart';
 import 'package:build/build.dart';
 import 'package:source_gen/source_gen.dart';
 import 'package:tool_schema_generator/tool_schema_generator.dart';
@@ -25,6 +27,10 @@ class ToolSchemaGenerator extends Generator {
     Describe,
     inPackage: 'tool_schema_generator',
   );
+  static final _injectTypeChecker = TypeChecker.typeNamed(
+    Inject,
+    inPackage: 'tool_schema_generator',
+  );
 
   @override
   String generate(LibraryReader library, BuildStep buildStep) {
@@ -37,6 +43,7 @@ class ToolSchemaGenerator extends Generator {
       if (!_toolTypeChecker.hasAnnotationOfExact(element)) continue;
       final annotation = _toolTypeChecker.firstAnnotationOfExact(element);
       if (annotation == null) continue;
+      _validateInjectedParameters(element);
       functions.add((element: element, annotation: ConstantReader(annotation)));
     }
 
@@ -226,13 +233,14 @@ class ToolSchemaGenerator extends Generator {
     var isFirstProperty = true;
 
     for (final param in parameters) {
+      final paramName = param.name;
+      if (paramName == null) continue;
+      if (_hasAnnotation(param, _injectTypeChecker)) continue;
+
       if (!isFirstProperty) {
         propertiesBuffer.writeln(',');
       }
       isFirstProperty = false;
-
-      final paramName = param.name;
-      if (paramName == null) continue;
 
       final paramTypeSchema = typeMapper.mapType(param.type);
 
@@ -311,14 +319,61 @@ class ToolSchemaGenerator extends Generator {
 
   /// Searches for a `@Describe` annotation on a [FormalParameterElement].
   String? _findDescribeAnnotation(FormalParameterElement param) {
+    final annotationValue = _findAnnotation(param, _describeTypeChecker);
+    return annotationValue?.getField('description')?.toStringValue();
+  }
+
+  void _validateInjectedParameters(TopLevelFunctionElement function) {
+    for (final param in function.formalParameters) {
+      if (!_hasAnnotation(param, _injectTypeChecker)) continue;
+
+      final name = param.name ?? '<unnamed>';
+      final parameterLabel = '${function.name}.$name';
+
+      if (!param.isNamed) {
+        throw InvalidGenerationSourceError(
+          '@Inject() can only be used on named parameters.',
+          element: param,
+          todo: 'Move "$name" into the named parameter list.',
+        );
+      }
+
+      if (param.isRequiredNamed) {
+        throw InvalidGenerationSourceError(
+          '@Inject() parameters must not be required.',
+          element: param,
+          todo: 'Make "$parameterLabel" nullable or give it a default value.',
+        );
+      }
+
+      final hasDefault =
+          param.defaultValueCode != null && param.defaultValueCode!.isNotEmpty;
+      final isNullable =
+          param.type.nullabilitySuffix == NullabilitySuffix.question;
+      if (!hasDefault && !isNullable) {
+        throw InvalidGenerationSourceError(
+          '@Inject() parameters must be nullable or have a default value.',
+          element: param,
+          todo: 'Make "$parameterLabel" nullable or give it a default value.',
+        );
+      }
+    }
+  }
+
+  bool _hasAnnotation(FormalParameterElement param, TypeChecker typeChecker) =>
+      _findAnnotation(param, typeChecker) != null;
+
+  DartObject? _findAnnotation(
+    FormalParameterElement param,
+    TypeChecker typeChecker,
+  ) {
     for (final metadata in param.metadata.annotations) {
       final annotationValue = metadata.computeConstantValue();
       if (annotationValue == null) continue;
 
       final annotationType = annotationValue.type;
-      if (annotationType != null &&
-          _describeTypeChecker.isExactlyType(annotationType)) {
-        return annotationValue.getField('description')?.toStringValue();
+      if (annotationType != null && typeChecker.isExactlyType(annotationType)) {
+        return annotationValue;
       }
     }
     return null;

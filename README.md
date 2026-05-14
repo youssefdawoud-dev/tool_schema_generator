@@ -14,6 +14,7 @@ If you are building AI agents with Gemini, OpenAI, Claude, or other LLMs, you of
 - **Full Analyzer Support:** Supports `String`, `int`, `double`, `bool`, `List<T>`, `Map<String, dynamic>`, `enum`s, and custom nested classes.
 - **Seamless Integration:** Uses the canonical `source_gen` combining builder. It outputs to a standard `.g.dart` file and plays nicely alongside other generators like `json_serializable`.
 - **Customizable:** Override tool names and descriptions, or let it automatically extract descriptions from your Dart doc comments.
+- **Runtime Injection:** Hide app-controlled parameters from the LLM schema with `@Inject()` while still passing them during dispatch.
 
 ## 📦 Installation
 
@@ -21,7 +22,7 @@ Add the package to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  tool_schema_generator: ^0.2.0
+  tool_schema_generator: ^0.3.0
 
 dev_dependencies:
   build_runner: ^2.4.0
@@ -162,6 +163,33 @@ If you don't want to use the Dart function name or doc comment, you can override
   description: 'A highly specific search tool description.'
 )
 void search(String query) {}
+```
+
+### Injected Runtime Parameters
+
+Use `@Inject()` for app-controlled named parameters that should not appear in
+the schema sent to the LLM. Injected parameters are still read from the same
+arguments map passed to `toolRegistry.call`, so you can merge values like user
+IDs, tenant IDs, or request locale at invocation time.
+
+Injected parameters must be optional: nullable, have a Dart default value, or
+both.
+
+```dart
+@Tool()
+Future<void> createTask(
+  @Describe('Task title') String title, {
+  @Inject() String? userId,
+  @Inject() String locale = 'en',
+}) async {
+  // userId and locale are available here, but only title is in the schema.
+}
+
+final result = await toolRegistry.call(toolCall.name, {
+  ...toolCall.arguments,
+  'userId': currentUser.id,
+  'locale': request.locale,
+});
 ```
 
 ## 🤝 Contributing

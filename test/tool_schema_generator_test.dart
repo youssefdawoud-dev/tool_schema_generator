@@ -458,6 +458,147 @@ void main() {
     });
 
     // ------------------------------------------------------------------
+    // @Inject annotation on params
+    // ------------------------------------------------------------------
+    test(
+      'omits @Inject parameters from schema but keeps dispatcher args',
+      () async {
+        await testBuilder(
+          _makeBuilder(),
+          {
+            'tool_schema_generator|lib/tool_schema_generator.dart':
+                _annotationSource,
+            '_test|lib/test.dart': '''
+            import 'package:tool_schema_generator/tool_schema_generator.dart';
+            part 'test.g.dart';
+
+            @Tool()
+            void createTask(
+              String title, {
+              @Inject() String? userId,
+              @Inject() String locale = 'en',
+            }) {}
+          ''',
+          },
+          generateFor: {'_test|lib/test.dart'},
+          outputs: {
+            '_test|lib/test.tool_schema.g.part': decodedMatches(
+              allOf([
+                contains("'title':"),
+                contains("'required': <String>['title']"),
+                isNot(contains("'userId':")),
+                isNot(contains("'locale':")),
+                contains("userId: args['userId'] as String?"),
+                contains("locale: (args['locale'] as String?) ?? 'en'"),
+              ]),
+            ),
+          },
+        );
+      },
+    );
+
+    test('allows nullable @Inject parameter without a default', () async {
+      await testBuilder(
+        _makeBuilder(),
+        {
+          'tool_schema_generator|lib/tool_schema_generator.dart':
+              _annotationSource,
+          '_test|lib/test.dart': '''
+            import 'package:tool_schema_generator/tool_schema_generator.dart';
+            part 'test.g.dart';
+
+            @Tool()
+            void ping(String host, {@Inject() int? timeoutSeconds}) {}
+          ''',
+        },
+        generateFor: {'_test|lib/test.dart'},
+        outputs: {
+          '_test|lib/test.tool_schema.g.part': decodedMatches(
+            allOf([
+              contains("'host':"),
+              isNot(contains("'timeoutSeconds':")),
+              contains("timeoutSeconds: args['timeoutSeconds'] as int?"),
+            ]),
+          ),
+        },
+      );
+    });
+
+    test('rejects @Inject on positional parameters', () async {
+      final result = await testBuilder(
+        _makeBuilder(),
+        {
+          'tool_schema_generator|lib/tool_schema_generator.dart':
+              _annotationSource,
+          '_test|lib/test.dart': '''
+              import 'package:tool_schema_generator/tool_schema_generator.dart';
+              part 'test.g.dart';
+
+              @Tool()
+              void bad(@Inject() String userId) {}
+            ''',
+        },
+        generateFor: {'_test|lib/test.dart'},
+      );
+
+      expect(result.succeeded, isFalse);
+      expect(
+        result.errors.join('\n'),
+        contains('@Inject() can only be used on named parameters.'),
+      );
+    });
+
+    test('rejects required named @Inject parameters', () async {
+      final result = await testBuilder(
+        _makeBuilder(),
+        {
+          'tool_schema_generator|lib/tool_schema_generator.dart':
+              _annotationSource,
+          '_test|lib/test.dart': '''
+              import 'package:tool_schema_generator/tool_schema_generator.dart';
+              part 'test.g.dart';
+
+              @Tool()
+              void bad({@Inject() required String userId}) {}
+            ''',
+        },
+        generateFor: {'_test|lib/test.dart'},
+      );
+
+      expect(result.succeeded, isFalse);
+      expect(
+        result.errors.join('\n'),
+        contains('@Inject() parameters must not be required.'),
+      );
+    });
+
+    test('rejects non-nullable @Inject parameters without defaults', () async {
+      final result = await testBuilder(
+        _makeBuilder(),
+        {
+          'tool_schema_generator|lib/tool_schema_generator.dart':
+              _annotationSource,
+          '_test|lib/test.dart': '''
+              import 'package:tool_schema_generator/tool_schema_generator.dart';
+              part 'test.g.dart';
+
+              @Tool()
+              void bad({@Inject() String userId}) {}
+            ''',
+        },
+        generateFor: {'_test|lib/test.dart'},
+      );
+
+      expect(result.succeeded, isFalse);
+      expect(
+        result.errors.join('\n'),
+        contains(
+          '@Inject() parameters must be nullable or have a default value.',
+        ),
+      );
+    });
+
+    // ------------------------------------------------------------------
     // Multiple @Tool functions → allToolSchemas
     // ------------------------------------------------------------------
     test('generates allToolSchemas aggregate for multiple tools', () async {
@@ -734,5 +875,9 @@ class Tool {
 class Describe {
   final String description;
   const Describe(this.description);
+}
+
+class Inject {
+  const Inject();
 }
 ''';

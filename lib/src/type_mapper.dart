@@ -163,11 +163,12 @@ class TypeMapper {
     String? defaultCode,
   }) {
     final isNullable = type.nullabilitySuffix == NullabilitySuffix.question;
+    final hasDefault = defaultCode != null && defaultCode.isNotEmpty;
     final rawAccess = "args['$fieldName']";
 
     String withDefault(String expr) {
-      if (defaultCode != null && defaultCode.isNotEmpty) {
-        return '$expr ?? $defaultCode';
+      if (hasDefault) {
+        return '($expr) ?? $defaultCode';
       }
       return expr;
     }
@@ -180,7 +181,7 @@ class TypeMapper {
     final baseTypeName = typeName.endsWith('?')
         ? typeName.substring(0, typeName.length - 1)
         : typeName;
-    final nullableSuffix = isNullable ? '?' : '';
+    final nullableSuffix = (isNullable || hasDefault) ? '?' : '';
 
     switch (baseTypeName) {
       case 'String':
@@ -192,7 +193,7 @@ class TypeMapper {
       case 'num':
         return withDefault('$rawAccess as num$nullableSuffix');
       case 'double':
-        if (isNullable) {
+        if (isNullable || hasDefault) {
           return withDefault('($rawAccess as num?)?.toDouble()');
         }
         return withDefault('($rawAccess as num).toDouble()');
@@ -204,7 +205,7 @@ class TypeMapper {
       final typeArgs = type.typeArguments;
       if (typeArgs.isNotEmpty) {
         final itemType = typeArgs.first.getDisplayString();
-        if (isNullable) {
+        if (isNullable || hasDefault) {
           return withDefault('($rawAccess as List?)?.cast<$itemType>()');
         }
         return withDefault('($rawAccess as List).cast<$itemType>()');
@@ -219,11 +220,12 @@ class TypeMapper {
     if (element is EnumElement) {
       final enumName = element.name;
       if (enumName == null) return withDefault('$rawAccess as dynamic');
-      
-      final hasDefault = defaultCode != null && defaultCode.isNotEmpty;
+
       final castType = (isNullable || hasDefault) ? 'String?' : 'String';
-      
-      return withDefault('_parseEnum($enumName.values, $rawAccess as $castType)');
+
+      return withDefault(
+        '_parseEnum($enumName.values, $rawAccess as $castType)',
+      );
     }
 
     if (element is ClassElement) {
@@ -231,7 +233,7 @@ class TypeMapper {
       if (className == null) return withDefault('$rawAccess as dynamic');
       final cap = className[0].toUpperCase() + className.substring(1);
       final helperName = '_parse$cap';
-      if (isNullable) {
+      if (isNullable || hasDefault) {
         return withDefault(
           '$rawAccess != null ? $helperName($rawAccess as Map<String, dynamic>) : null',
         );

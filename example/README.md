@@ -9,7 +9,7 @@ This example demonstrates how to use the `tool_schema_generator` package to auto
 
 ```yaml
 dependencies:
-  tool_schema_generator: ^0.1.0
+  tool_schema_generator: ^0.3.0
 
 dev_dependencies:
   build_runner: ^2.4.0

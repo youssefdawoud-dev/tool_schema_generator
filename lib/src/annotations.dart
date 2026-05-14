@@ -55,3 +55,27 @@ class Describe {
   /// Creates a [Describe] annotation.
   const Describe(this.description);
 }
+
+/// Marks a named tool parameter as runtime-injected.
+///
+/// Injected parameters are not included in the generated JSON Schema sent to
+/// the LLM. They are still read from the `args` map passed to
+/// `toolRegistry.call`, so application code can merge request/session values
+/// into the tool call arguments before dispatch.
+///
+/// Injected parameters must be named and optional: either nullable or have a
+/// Dart default value.
+///
+/// Example:
+/// ```dart
+/// @Tool()
+/// void createTask(
+///   String title, {
+///   @Inject() String? userId,
+///   @Inject() String locale = 'en',
+/// }) {}
+/// ```
+class Inject {
+  /// Creates an [Inject] annotation.
+  const Inject();
+}

@@ -1,9 +1,6 @@
 name: tool_schema_generator
-description: >
-  Annotations and a code generator for automatic LLM tool schema generation.
-  Mark functions with @Tool() and parameters with @Describe() to generate JSON
-  Schema Draft 2020-12 definitions and a type-safe ToolRegistry dispatcher.
-version: 0.2.1
+description: Generate JSON Schema Draft 2020-12 tool definitions and dispatchers for LLM function calling from annotated Dart functions.
+version: 0.3.0
 repository: https://github.com/youssefdawoud-dev/tool_schema_generator
 homepage: https://github.com/youssefdawoud-dev/tool_schema_generator
 
